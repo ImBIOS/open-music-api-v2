@@ -42,7 +42,7 @@ const init = async () => {
     },
   ]);
 
-  // mendefinisikan strategy autentikasi jwt
+  // mendefinisikan strategy otentikasi jwt
   server.auth.strategy("songsapp_jwt", "jwt", {
     keys: process.env.ACCESS_TOKEN_KEY,
     verify: {
