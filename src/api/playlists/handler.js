@@ -1,33 +1,35 @@
 const ClientError = require("../../exceptions/ClientError");
 
-class SongsHandler {
-  constructor(service, validator) {
-    this._service = service;
+class PlaylistsHandler {
+  constructor(playlistsService, usersService, validator) {
+    this._playlistsService = playlistsService;
     this._validator = validator;
+    this._usersService = usersService;
 
-    this.postSongHandler = this.postSongHandler.bind(this);
-    this.getSongsHandler = this.getSongsHandler.bind(this);
-    this.getSongByIdHandler = this.getSongByIdHandler.bind(this);
-    this.putSongByIdHandler = this.putSongByIdHandler.bind(this);
-    this.deleteSongByIdHandler = this.deleteSongByIdHandler.bind(this);
+    this.postPlaylistHandler = this.postPlaylistHandler.bind(this);
+    this.getPlaylistsHandler = this.getPlaylistsHandler.bind(this);
+    this.getPlaylistByIdHandler = this.getPlaylistByIdHandler.bind(this);
+    this.putPlaylistByIdHandler = this.putPlaylistByIdHandler.bind(this);
+    this.deletePlaylistByIdHandler = this.deletePlaylistByIdHandler.bind(this);
   }
 
-  async postSongHandler(request, h) {
+  async postPlaylistHandler(request, h) {
     try {
-      this._validator.validateSongPayload(request.payload);
+      this._validator.validatePlaylistPayload(request.payload);
       const {
-        title = "untitled", year, performer, genre, duration,
+        name,
       } = request.payload;
+      const { id: credentialId } = request.auth.credentials;
 
-      const songId = await this._service.addSong({
-        title, year, performer, genre, duration,
+      const playlistId = await this._playlistsService.addPlaylist({
+        name, owner: credentialId,
       });
 
       const response = h.response({
         status: "success",
-        message: "Lagu berhasil ditambahkan",
+        message: "Playlist berhasil ditambahkan",
         data: {
-          songId,
+          playlistId,
         },
       });
       response.code(201);
@@ -53,18 +55,20 @@ class SongsHandler {
     }
   }
 
-  async getSongsHandler(_request, h) {
+  async getPlaylistsHandler(request, h) {
     try {
-      const songs = await this._service.getSongs();
-      const songsProps = songs.map((song) => ({
-        id: song.id,
-        title: song.title,
-        performer: song.performer,
+      const { id: credentialId } = request.auth.credentials;
+      const playlists = await this._playlistsService.getPlaylists(credentialId);
+
+      const playlistsProps = playlists.map((playlist) => ({
+        id: playlist.id,
+        name: playlist.name,
+        username: playlist.username,
       }));
       return {
         status: "success",
         data: {
-          songs: songsProps,
+          playlists: playlistsProps,
         },
       };
     } catch (error) {
@@ -88,14 +92,18 @@ class SongsHandler {
     }
   }
 
-  async getSongByIdHandler(request, h) {
+  async getPlaylistByIdHandler(request, h) {
     try {
       const { id } = request.params;
-      const song = await this._service.getSongById(id);
+      const { id: credentialId } = request.auth.credentials;
+
+      await this._playlistsService.verifyPlaylistAccess(id, credentialId);
+      const playlist = await this._playlistsService.getPlaylistById(id);
+
       return {
         status: "success",
         data: {
-          song,
+          playlist,
         },
       };
     } catch (error) {
@@ -119,16 +127,18 @@ class SongsHandler {
     }
   }
 
-  async putSongByIdHandler(request, h) {
+  async putPlaylistByIdHandler(request, h) {
     try {
-      this._validator.validateSongPayload(request.payload);
+      this._validator.validatePlaylistPayload(request.payload);
       const { id } = request.params;
+      const { id: credentialId } = request.auth.credentials;
 
-      await this._service.editSongById(id, request.payload);
+      await this._playlistsService.verifyPlaylistAccess(id, credentialId);
+      await this._playlistsService.editPlaylistById(id, request.payload);
 
       return {
         status: "success",
-        message: "Lagu berhasil diperbarui",
+        message: "Playlist berhasil diperbarui",
       };
     } catch (error) {
       if (error instanceof ClientError) {
@@ -151,13 +161,16 @@ class SongsHandler {
     }
   }
 
-  async deleteSongByIdHandler(request, h) {
+  async deletePlaylistByIdHandler(request, h) {
     try {
       const { id } = request.params;
-      await this._service.deleteSongById(id);
+      const { id: credentialId } = request.auth.credentials;
+
+      await this._playlistsService.verifyPlaylistOwner(id, credentialId);
+      await this._playlistsService.deletePlaylistById(id);
       return {
         status: "success",
-        message: "Lagu berhasil dihapus",
+        message: "Playlist berhasil dihapus",
       };
     } catch (error) {
       if (error instanceof ClientError) {
@@ -181,4 +194,4 @@ class SongsHandler {
   }
 }
 
-module.exports = SongsHandler;
+module.exports = PlaylistsHandler;

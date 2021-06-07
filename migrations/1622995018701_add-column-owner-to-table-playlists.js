@@ -3,7 +3,7 @@
 exports.shorthands = undefined;
 
 exports.up = (pgm) => {
-  pgm.addColumn("songs", {
+  pgm.addColumn("playlists", {
     owner: {
       type: "VARCHAR(50)",
     },
@@ -11,5 +11,5 @@ exports.up = (pgm) => {
 };
 
 exports.down = (pgm) => {
-  pgm.dropColumn("songs", "owner");
+  pgm.dropColumn("playlists", "owner");
 };
